@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSM Project Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>Project Tracker</h1>
+    
+    <div class="controls">
+        <input type="text" id="projectSearch" placeholder="Search projects by name..." onkeyup="render()">
+        <button class="add-btn" onclick="createNewProject()">+ Create New Project</button>
+        <button id="toggleArchiveBtn" class="archive-toggle-btn" onclick="toggleArchiveView()">View Archived Projects</button>
+    </div>
+    
+    <div id="project-list"></div>
+</div>
+
+<script type="module">
+// 1. IMPORT REALTIME DATABASE FUNCTIONS
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // THE COMPLETE MASTER TEMPLATE
+    const CHECKLIST_TEMPLATE = [
+        {
+            id: "printers",
+            title: "PRINTERS",
+            tasks: [
+                { id: "p1", text: "Number of printers required." },
+                { id: "p2", text: "Type of printers required (monochrome, colour)" },
+                { id: "p3", text: "Location of printers on plan." },
+                { id: "p4", text: "Requirements for printers (network and power)." },
+                { id: "p5", text: "Delivery/ installation date for printer/s." },
+                { id: "p6", text: "Installation of docking tiles or power poles." }
+            ]
+        },
+        {
+            id: "display",
+            title: "TV/ DISPLAY MONITORS",
+            tasks: [
+                { id: "d1", text: "Specification of TVs/ display monitor/s." },
+                { id: "d2", text: "Number of each required." },
+                { id: "d3", text: "Location on floor plan." },
+                { id: "d4", text: "Power and network requirements" },
+                { id: "d5", text: "Installation of docking tiles or power poles." }
+            ]
+        },
+        {
+            id: "electrosets",
+            title: "ELECTROSETS",
+            tasks: [
+                { id: "e1", text: "Specification for type of electrosets required." },
+                { id: "e2", text: "Quotation requested." },
+                { id: "e3", text: "Quotation received." },
+                { id: "e4", text: "RFQ loaded." },
+                { id: "e5", text: "PO issued." },
+                { id: "e6", text: "Lead time for manufacturer & delivery." },
+                { id: "e7", text: "Timelines for installation and end date." }
+            ]
+        },
+        {
+            id: "desks",
+            title: "DESKS",
+            tasks: [
+                { id: "dk1", text: "Desk Specifications (dimensions, finish, legs, cable reticulation, accommodation for looping of laptop cable)" },
+                { id: "dk2", text: "Floor plan highlighting layout and configurations and quantities required." },
+                { id: "dk3", text: "Quotation requested." },
+                { id: "dk4", text: "Quotation received." },
+                { id: "dk5", text: "RFQ loaded." },
+                { id: "dk6", text: "PO issued." },
+                { id: "dk7", text: "Lead time for manufacturer & delivery." },
+                { id: "dk8", text: "Timelines for installation and end date." },
+                { id: "dk9", text: "Installation of docking tiles or power poles." }
+            ]
+        },
+        {
+            id: "clerical-chairs",
+            title: "CLERICAL CHAIRS",
+            tasks: [
+                { id: "c1", text: "Specifications: material, colour, base." },
+                { id: "c2", text: "Floor plan highlighting layout and configuration and quantities required." },
+                { id: "c3", text: "Quotation requested." },
+                { id: "c4", text: "Quotation received." },
+                { id: "c5", text: "RFQ loaded" },
+                { id: "c6", text: "PO issued." },
+                { id: "c7", text: "Lead time for manufacturer & delivery." }
+            ]
+        },
+        {
+            id: "meeting-rooms",
+            title: "MEETING ROOMS",
+            sections: [
+                {
+                    subTitle: "Meeting room table:",
+                    tasks: [
+                        { id: "mrt1", text: "Specifications: seater size, dimensions, finishes, legs, cutouts, lead time for manufacturer & delivery)." },
+                        { id: "mrt2", text: "Floor plan highlighting layout and configuration and quantities required." },
+                        { id: "mrt3", text: "Quotation requested." },
+                        { id: "mrt4", text: "Quotation received." },
+                        { id: "mrt5", text: "RFQ loaded." },
+                        { id: "mrt6", text: "PO issued." },
+                        { id: "mrt7", text: "Lead time for manufacturer & delivery." },
+                        { id: "mrt8", text: "Timelines for installation and end date." },
+                        { id: "mrt9", text: "Installation of docking tiles or power poles." }
+                    ]
+                },
+                {
+                    subTitle: "Meeting room chairs:",
+                    tasks: [
+                        { id: "mrc1", text: "Specifications: material, colour, base." },
+                        { id: "mrc2", text: "Floor plan highlighting layout and configuration and quantities required." },
+                        { id: "mrc3", text: "Quotation requested." },
+                        { id: "mrc4", text: "Quotation received." },
+                        { id: "mrc5", text: "RFQ loaded." },
+                        { id: "mrc6", text: "PO issued." },
+                        { id: "mrc7", text: "Lead time for manufacturer & delivery." },
+                        { id: "mrc8", text: "Timelines for installation and end date." }
+                    ]
+                },
+                {
+                    subTitle: "ICT:",
+                    tasks: [
+                        { id: "ict1", text: "AV/ VC Kit required if any (standard, MTR, presentation)." },
+                        { id: "ict2", text: "Network, Wi-Fi and power requirements." },
+                        { id: "ict3", text: "Floor plan highlighting layout and configuration and quantities required." },
+                        { id: "ict4", text: "Quotation requested." },
+                        { id: "ict5", text: "Quotation received." },
+                        { id: "ict6", text: "RFQ loaded." },
+                        { id: "ict7", text: "PO issued." },
+                        { id: "ict8", text: "Lead time for manufacturer & delivery." },
+                        { id: "ict9", text: "Timelines for installation and end date." },
+                        { id: "ict10", text: "Electronic booking system requirements (tablet displaying room booking information)." },
+                        { id: "ict11", text: "Installation of docking tiles or power poles." },
+                        { id: "ict12", text: "Technology control panels." }
+                    ]
+                },
+                {
+                    subTitle: "Engineering:",
+                    tasks: [
+                        { id: "eng1", text: "Mechanical ventilation requirements" },
+                        { id: "eng2", text: "Electrical requirements (light sensors, lighting, HVAC sensors, AC controllers)." },
+                        { id: "eng3", text: "Evac speaker requirements." },
+                        { id: "eng4", text: "Installation of docking tiles or power poles." },
+                        { id: "eng5", text: "Smoke/ Fire detection." },
+                        { id: "eng6", text: "Sprinklers." }
+                    ]
+                },
+                {
+                    subTitle: "Vinyl Requirements (if any):",
+                    tasks: [
+                        { id: "vreq1", text: "Design approval." },
+                        { id: "vreq2", text: "Quotation requested." },
+                        { id: "vreq3", text: "Quotation received." },
+                        { id: "vreq4", text: "RFQ loaded." },
+                        { id: "vreq5", text: "PO issued." },
+                        { id: "vreq6", text: "Lead time for manufacturer & delivery." },
+                        { id: "vreq7", text: "Timelines for installation and end date." }
+                    ]
+                },
+                {
+                    subTitle: "Ancillary Furniture:",
+                    tasks: [
+                        { id: "anc1", text: "Furniture Type" },
+                        { id: "anc2", text: "Specifications (dimensions, finishes, cable reticulation if required, electrical and mechanical requirements if applicable)" },
+                        { id: "anc3", text: "Floor plan highlighting layout and configuration and quantities required." },
+                        { id: "anc4", text: "Quotation requested." },
+                        { id: "anc5", text: "Quotation received." },
+                        { id: "anc6", text: "RFQ loaded." },
+                        { id: "anc7", text: "PO issued." },
+                        { id: "anc8", text: "Lead time for manufacturer & delivery." },
+                        { id: "anc9", text: "Timelines for installation and end date." }
+                    ]
+                },
+                {
+                    subTitle: "Signage:",
+                    tasks: [
+                        { id: "s1", text: "Type of signage (wayfinding, business unit location, room description, meeting room." },
+                        { id: "s2", text: "Ensure alignment/ signoff from Brand & Marketing." }
+                    ]
+                },
+                {
+                    subTitle: "Storage Requirements:",
+                    tasks: [
+                        { id: "sreq1", text: "Type of storage (bulk filer, cabinet, records room, storeroom, strong room)." },
+                        { id: "sreq2", text: "Can items be archived?" },
+                        { id: "sreq3", text: "Quantity of items to be stored." },
+                        { id: "sreq4", text: "Possibility of shared records/ strong/ storeroom/ bulk filer." }
+                    ]
+                }
+            ]
+        },
+        {
+            id: "ict-support",
+            title: "RES IT SUPPORT",
+            sections: [
+                {
+                    subTitle: "Relocations/ Moves:",
+                    tasks: [
+                        { id: "rel1", text: "Coordination of relocations on the GRES Pipeline." },
+                        { id: "rel2", text: "Installation/ activation of network points where required." },
+                        { id: "rel3", text: "Sufficient IT support for during and post moves." },
+                        { id: "rel4", text: "Ensuring MFDs’ are in position, including provision of any network requirements." }
+                    ]
+                },
+                {
+                    subTitle: "Assistance with freeze dispensation when required:",
+                    tasks: [
+                        { id: "ass1", text: "Assistance with freeze dispensation when required." }
+                    ]
+                },
+                {
+                    subTitle: "Liaison: Business & Omega Digital (AV/VC):",
+                    tasks: [
+                        { id: "lia1", text: "Guidance on design." },
+                        { id: "lia2", text: "Network and power requirements." },
+                        { id: "lia3", text: "Quotation for works requested." },
+                        { id: "lia4", text: "Timelines for delivery, installation and duration of installation." },
+                        { id: "lia5", text: "Cut our requirements to meeting room table/s." },
+                        { id: "lia6", text: "Installation requirements for technology control panels." }
+                    ]
+                },
+                {
+                    subTitle: "WiFi Requirements:",
+                    tasks: [
+                        { id: "wreq1", text: "Assist with installation of Wi-Fi when required." }
+                    ]
+                },
+                {
+                    subTitle: "Decommissioning: Arranging for the below:",
+                    tasks: [
+                        { id: "d1", text: "Removal of network points." },
+                        { id: "d2", text: "Removal of printers." },
+                        { id: "d3", text: "Removal of Wi-Fi." },
+                        { id: "d4", text: "Removal of switches and racks." }
+                    ]
+                },
+                {
+                    subTitle: "Other:",
+                    tasks: [
+                        { id: "o1", text: "Proactive planning in terms of ICT requirements for all projects." },
+                        { id: "o2", text: "Active involvement in projects and stakeholder engagements around IT dependencies and requirements." },
+                        { id: "o3", text: "Holistic understanding of business requirements." },
+                        { id: "o4", text: "Setting up of separate ICT meetings for projects." },
+                        { id: "o5", text: "Management of budget, GRES Pipeline and IMACDS for reporting purposes." }
+                    ]
+                }
+            ]
+        },
+        {
+            id: "ohs",
+            title: "Construction work and OHS",
+            sections: [
+                {
+                    subTitle: "Design Proposal:",
+                    tasks: [
+                        { id: "dp1", text: "Fire sprinkler impact (minimum 600mm clearance)" },
+                        { id: "dp2", text: "Fire detection impact" },
+                        { id: "dp3", text: "Evacuation route impact (1800mm/ 1500mm)" },
+                        { id: "dp4", text: "Emergency exits - rationale design required if densifying floor plate." },
+                        { id: "dp5", text: "Fire signage impact (ensure signage is repositioned if impacted by design)." },
+                        { id: "dp6", text: "Ablution adequacy. Rationale design required if densifying floor plate." }
+                    ]
+                },
+                {
+                    subTitle: "Tender to contractors:",
+                    tasks: [
+                        { id: "ten1", text: "OHS specification" },
+                        { id: "ten2", text: "Has signoff been received from OHS, mechanical and electrical design?" },
+                        { id: "ten3", text: "Scope document (includes design, mechanical and electrical requirements) to be included in submission to OHS." }
+                    ]
+                },
+                {
+                    subTitle: "Receiving tenders back:",
+                    tasks: [
+                        { id: "rtb1", text: "Check OHS costed for." },
+                        { id: "rtb2", text: "Inclusive of OHS file and OHS consultant" }
+                    ]
+                },
+                {
+                    subTitle: "Appoint contractor:",
+                    tasks: [
+                        { id: "ac1", text: "Issue PC (principal contractor) Appointment letter." },
+                        { id: "ac3", text: "Issue Mandatory agreement" },
+                        { id: "ac4", text: "Receive OHS file and audit" },
+                        { id: "ac5", text: "Provide safety file audit feedback" }
+                    ]
+                },
+                {
+                    subTitle: "Project commencement:",
+                    tasks: [ 
+                        { id: "pc1", text: "OHS & Security induction" }
+                    ]
+                },
+                {
+                    subTitle: "During Construction:",
+                    tasks: [
+                        { id: "dc1", text: "Site OHS inspections and audits" }
+                    ]
+                },
+                {
+                    subTitle: "Project Close out:",
+                    tasks: [
+                        { id: "pcclose1", text: "Obtain OHS File" }
+                    ]
+                }
+            ]
+        }
+    ];
+
+    // --- LOGIC ---
+  let userProjects = [];
+    let showArchived = false;
+
+    // REAL-TIME SYNC (Maintains State/Persistence)
+    const projectsRef = ref(db, 'projects');
+    onValue(projectsRef, (snapshot) => {
+        const data = snapshot.val();
+        // Convert the object from Firebase into an array for rendering
+        userProjects = data ? Object.values(data) : [];
+        window.render();
+    });
+
+    window.createNewProject = async function() {
+        const name = prompt("Enter Project Name:");
+        if (!name) return;
+        
+        const projectData = JSON.parse(JSON.stringify(CHECKLIST_TEMPLATE));
+        const projectId = Date.now().toString(); // Use timestamp as a unique ID
+        
+        const newProject = { 
+            id: projectId, 
+            name: name, 
+            status: 'active', 
+            expanded: true, 
+            data: projectData 
+        };
+        
+        await set(ref(db, 'projects/' + projectId), newProject);
+    };
+
+    window.toggleTask = async function(projId, taskId) {
+        const project = userProjects.find(p => p.id === projId.toString());
+        if (!project) return;
+
+        project.data.forEach(cat => {
+            const tasks = cat.sections ? cat.sections.flatMap(s => s.tasks) : cat.tasks;
+            const task = tasks.find(t => t.id === taskId);
+            if (task) task.completed = !task.completed;
+        });
+        
+        await set(ref(db, 'projects/' + projId), project);
+    };
+
+    window.toggleExpand = async function(id) {
+        const p = userProjects.find(proj => proj.id === id.toString());
+        if (p) {
+            p.expanded = !p.expanded;
+            await set(ref(db, 'projects/' + id), p);
+        }
+    };
+
+    window.archiveProject = async function(id) {
+        const p = userProjects.find(proj => proj.id === id.toString());
+        if (p) {
+            p.status = p.status === 'active' ? 'archived' : 'active';
+            await set(ref(db, 'projects/' + id), p);
+        }
+    };
+
+    window.deleteProject = async function(id) {
+        if (confirm("Delete this project permanently?")) {
+            await remove(ref(db, 'projects/' + id));
+        }
+    };
+
+    window.toggleArchiveView = function() {
+        showArchived = !showArchived;
+        document.getElementById('toggleArchiveBtn').innerText = showArchived ? "View Active Projects" : "View Archived Projects";
+        window.render();
+    };
+
+    // 5. RENDERING ENGINE
+    window.render = function() {
+        const list = document.getElementById('project-list');
+        const searchInput = document.getElementById('projectSearch');
+        const search = searchInput ? searchInput.value.toLowerCase() : "";
+        list.innerHTML = '';
+
+        const filtered = userProjects.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(search);
+            const matchesStatus = showArchived ? p.status === 'archived' : p.status === 'active';
+            return matchesSearch && matchesStatus;
+        });
+
+        filtered.forEach(project => {
+            const allTasks = project.data.flatMap(cat => cat.sections ? cat.sections.flatMap(s => s.tasks) : cat.tasks);
+            const done = allTasks.filter(t => t.completed).length;
+            const progress = (done / allTasks.length) * 100 || 0;
+
+            const card = document.createElement('div');
+            card.className = `project-card ${project.expanded ? 'expanded' : ''}`;
+            card.innerHTML = `
+                <div class="card-header" onclick="window.toggleExpand('${project.id}')">
+                    <span class="project-title">${project.name}</span>
+                    <div style="display:flex; align-items:center; gap:10px">
+                        <div class="progress-container"><div class="progress-fill" style="width: ${progress}%"></div></div>
+                        <button class="archive-btn" onclick="event.stopPropagation(); window.archiveProject('${project.id}')">${showArchived ? 'Restore' : 'Archive'}</button>
+                        <button class="del-btn" onclick="event.stopPropagation(); window.deleteProject('${project.id}')">×</button>
+                    </div>
+                </div>
+                <div class="checklist-content">${project.data.map(cat => renderCategory(project.id, cat)).join('')}</div>
+            `;
+            list.appendChild(card);
+        });
+    };
+
+    function renderCategory(projId, cat) {
+        let html = `<h3 class="category-header">${cat.title}</h3>`;
+        if (cat.sections) {
+            html += cat.sections.map(sec => `<div class="sub-section"><h4 class="sub-header">${sec.subTitle}</h4>${sec.tasks.map(t => createTaskMarkup(projId, t)).join('')}</div>`).join('');
+        } else {
+            html += cat.tasks.map(t => createTaskMarkup(projId, t)).join('');
+        }
+        return html;
+    }
+
+    function createTaskMarkup(projId, t) {
+        return `<div class="task-item ${t.completed ? 'completed' : ''}">
+                    <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="window.toggleTask('${projId}', '${t.id}')">
+                    <span>${t.text}</span>
+                </div>`;
+    }
+
+</script>
+</body>
+</html>

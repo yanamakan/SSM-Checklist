@@ -1,0 +1,41 @@
+:root {
+    --primary: #06417d;
+    --accent: #3498db;
+    --bg: #f4f7f6;
+    --card-bg: #ffffff;
+    --text: #333;
+    --success: #27ae60;
+    --warning: #f39c12;
+}
+
+body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; }
+h1 { text-align: center; color: var(--primary); }
+
+.controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+#projectSearch { flex-grow: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; outline: none; }
+#projectSearch:focus { border-color: var(--accent); }
+
+.add-btn { background: #012cba; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+.archive-toggle-btn { background: #7f8c8d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+
+.project-card { background: var(--card-bg); border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+.card-header { padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.card-header:hover { background: #fafafa; }
+
+.progress-container { width: 100px; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.3s; }
+
+.checklist-content { display: none; padding: 0 20px 20px 20px; border-top: 1px solid #eee; }
+.project-card.expanded .checklist-content { display: block; }
+
+.category-header { margin-top: 25px; color: var(--primary); border-left: 4px solid var(--accent); padding-left: 10px; font-size: 1rem; text-transform: uppercase; }
+.sub-section { margin-left: 15px; margin-bottom: 15px; }
+.sub-header { margin: 15px 0 5px 0; font-size: 0.9rem; color: var(--accent); }
+
+.task-item { display: flex; align-items: flex-start; margin-top: 10px; gap: 12px; font-size: 0.95rem; }
+.task-item.completed span { text-decoration: line-through; color: #888; }
+input[type="checkbox"] { transform: scale(1.2); cursor: pointer; margin-top: 4px; }
+
+.archive-btn { background: var(--warning); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+.del-btn { background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
