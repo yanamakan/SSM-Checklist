@@ -13,7 +13,7 @@
     
     <div class="controls">
         <input type="text" id="projectSearch" placeholder="Search projects by name..." onkeyup="render()">
-        <button class="add-btn" onclick="createNewProject()">+ Create New Project</button>
+        <button class="add-btn" onclick="createNewProject()">Create New Project</button>
         <button id="toggleArchiveBtn" class="archive-toggle-btn" onclick="toggleArchiveView()">View Archived Projects</button>
     </div>
     
@@ -21,7 +21,6 @@
 </div>
 
 <script type="module">
-// 1. IMPORT REALTIME DATABASE FUNCTIONS
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -318,7 +317,7 @@
     ];
 
     // --- LOGIC ---
-  let userProjects = [];
+    let userProjects = [];
     let showArchived = false;
 
     // REAL-TIME SYNC (Maintains State/Persistence)
@@ -335,7 +334,7 @@
         if (!name) return;
         
         const projectData = JSON.parse(JSON.stringify(CHECKLIST_TEMPLATE));
-        const projectId = Date.now().toString(); // Use timestamp as a unique ID
+        const projectId = Date.now().toString(); 
         
         const newProject = { 
             id: projectId, 
