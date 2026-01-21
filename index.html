@@ -41,10 +41,13 @@
     </div>
 
 <script type="module">
+    // --- DEPENDENCIES ---
+    // Import Firebase SDKs for Database and Google Authentication
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+    // --- CONFIGURATION ---
     const firebaseConfig = {
         apiKey: "AIzaSyCkPRfzBr6HjPJ14O-p_ir_XOvgvnkU8hk", 
         authDomain: "ssm-project-tracker.firebaseapp.com",
@@ -52,19 +55,21 @@
         projectId: "ssm-project-tracker",
     };
 
+    // Initialize Firebase Services
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
+    // --- STATE MANAGEMENT ---
+    // Tracks projects that haven't been created yet for the dropdown
     let commonProjects = ["Standard Bank Migration", "SSM Security Audit", "Quarterly Compliance Review"];
     let userProjects = [];
     let showArchived = false;
     let currentUser = null;
 
     // MASTER TEMPLATE
-    
-const CHECKLIST_TEMPLATE = [
+    const CHECKLIST_TEMPLATE = [
         {
             id: "printers",
             title: "PRINTERS",
@@ -351,10 +356,12 @@ const CHECKLIST_TEMPLATE = [
     ];
 
 
-    // --- AUTH LOGIC ---
+    // --- AUTHENTICATION LOGIC ---
+    // Trigger Google Sign-in Popup
     window.login = () => signInWithPopup(auth, provider);
     window.logout = () => signOut(auth);
 
+    // Listener for login/logout state changes
     onAuthStateChanged(auth, (user) => {
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
@@ -373,7 +380,8 @@ const CHECKLIST_TEMPLATE = [
         window.render(); 
     });
 
-    // --- PROJECT LOGIC ---
+    // --- DATABASE SYNC ---
+    // Listen for real-time changes in the 'projects' path in Firebase
     const projectsRef = ref(db, 'projects');
     onValue(projectsRef, (snapshot) => {
         const data = snapshot.val();
@@ -381,56 +389,70 @@ const CHECKLIST_TEMPLATE = [
         window.render();
     });
 
+    // --- PROJECT CREATION HANDLERS ---
+    // Handler for creating a project from the 'Common Projects' dropdown
     window.selectCommonProject = function(name) {
         if (!name) return;
         handleProjectCreation(name);
-        document.getElementById('commonProjectDropdown').value = "";
+        document.getElementById('commonProjectDropdown').value = ""; // Clear dropdown after selection
     };
 
+    // Handler for custom name entry
     window.createNewProject = function() {
         const name = prompt("Enter Project Name:");
         if (name) handleProjectCreation(name);
     };
 
+    /**
+     * Master function to validate and save new projects to the cloud
+     */
     async function handleProjectCreation(name) {
         if (!currentUser) return alert("Please login first!");
 
+        // Security Check: Prevent two active projects with the identical name
         const duplicate = userProjects.find(p => 
             p.name.toLowerCase() === name.toLowerCase() && p.status === 'active'
         );
         if (duplicate) return alert(`Error: A project named "${name}" is already active.`);
 
-        const projectId = Date.now().toString();
+        const projectId = Date.now().toString(); // Use timestamp as a unique ID
         const newProject = { 
             id: projectId, 
             name: name, 
-            createdBy: currentUser.displayName, 
+            createdBy: currentUser.displayName, // Attach creator's name for team tracking
             status: 'active', 
             expanded: true, 
-            data: JSON.parse(JSON.stringify(CHECKLIST_TEMPLATE)) 
+            data: JSON.parse(JSON.stringify(CHECKLIST_TEMPLATE)) // Deep copy of the template
         };
 
-        // Remove from common projects list
+        // Logic: Once a 'Common Project' is used, remove it from the selectable dropdown
         commonProjects = commonProjects.filter(p => p.toLowerCase() !== name.toLowerCase());
 
+        // Write to Firebase
         await set(ref(db, 'projects/' + projectId), newProject);
     }
 
-    // --- RENDERING ---
+    // --- RENDERING ENGINE ---
+    /**
+     * Updates the HTML to reflect the current state (projects, search, filters)
+     */
     window.render = function() {
-        updateDropdown();
+        updateDropdown(); // Refresh the common projects menu
         const list = document.getElementById('project-list');
         const searchInput = document.getElementById('projectSearch');
         const search = searchInput ? searchInput.value.toLowerCase() : "";
         list.innerHTML = '';
 
+        // Filter projects based on the search bar and the Active/Archived toggle
         const filtered = userProjects.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(search);
             const matchesStatus = showArchived ? p.status === 'archived' : p.status === 'active';
             return matchesSearch && matchesStatus;
         });
 
+        // Generate the UI for each project card
         filtered.forEach(project => {
+            // Calculate progress % by flattening nested task arrays
             const allTasks = project.data.flatMap(cat => cat.sections ? cat.sections.flatMap(s => s.tasks) : cat.tasks);
             const done = allTasks.filter(t => t.completed).length;
             const progress = (done / allTasks.length) * 100 || 0;
@@ -456,6 +478,9 @@ const CHECKLIST_TEMPLATE = [
         });
     };
 
+    /**
+     * Dynamically populates the <select> menu with remaining common projects
+     */
     function updateDropdown() {
         const dropdown = document.getElementById('commonProjectDropdown');
         if (!dropdown) return;
@@ -485,7 +510,8 @@ const CHECKLIST_TEMPLATE = [
                 </div>`;
     }
 
-    // --- ACTIONS ---
+    // --- DATA MUTATION ACTIONS ---
+    // Update a task's completion status in Firebase
     window.toggleTask = async function(projId, taskId) {
         const project = userProjects.find(p => p.id === projId.toString());
         if (!project) return;
@@ -505,6 +531,7 @@ const CHECKLIST_TEMPLATE = [
         }
     };
 
+    // Toggle the Active/Archived flag for a project
     window.archiveProject = async function(id) {
         const p = userProjects.find(proj => proj.id === id.toString());
         if (p) {
@@ -523,6 +550,8 @@ const CHECKLIST_TEMPLATE = [
         window.render();
     };
 
+    // --- PDF UTILITY ---
+    // Isolates a single project card using CSS 'print-focus' class for PDF generation
     window.printProject = function(id) {
         const cards = document.querySelectorAll('.project-card');
         const targetCard = Array.from(cards).find(card => card.innerHTML.includes(`toggleExpand('${id}')`));
