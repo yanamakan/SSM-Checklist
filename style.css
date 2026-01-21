@@ -39,3 +39,118 @@ input[type="checkbox"] { transform: scale(1.2); cursor: pointer; margin-top: 4px
 
 .archive-btn { background: var(--warning); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
 .del-btn { background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+
+@media print {
+    /* Hide everything by default */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show only the project card with the 'print-focus' class and its children */
+    .project-card.print-focus,
+    .project-card.print-focus * {
+        visibility: visible;
+    }
+
+    /* Position the specific project at the very top of the PDF page */
+    .project-card.print-focus {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        border: none !important;
+    }
+
+    /* Hide the buttons inside the project card so they don't show in the PDF */
+    .print-project-btn, .archive-btn, .del-btn {
+        display: none !important;
+    }
+
+    .title-container {
+        justify-content: flex-start; /* Aligns to the left on the PDF paper */
+    }
+    
+    .main-logo {
+        width: 40px; /* Slightly smaller for the printed report */
+    }
+}
+
+/* Standard Button Style */
+.print-project-btn {
+    background-color: #4A90E2; /* Professional blue */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Hover Effect */
+.print-project-btn:hover {
+    background-color: #357ABD;
+    transform: translateY(-1px);
+}
+
+/* Active/Click Effect */
+.print-project-btn:active {
+    transform: translateY(0);
+}
+
+/* Ensure buttons are hidden in the final PDF */
+@media print {
+    .print-project-btn {
+        display: none !important;
+    }
+}
+
+.auth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+#user-info span {
+    font-weight: 600;
+    color: #333;
+}
+
+#login-btn {
+    background-color: white;
+    color: #757575;
+    border: 1px solid #ddd;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+#login-btn:hover {
+    background-color: #eee;
+}
+
+.title-container {
+    display: flex;
+    align-items: center; /* Aligns logo and text vertically */
+    justify-content: center; /* Keeps them centered on the page */
+    gap: 15px; /* Adds space between the logo and the text */
+    margin-bottom: 20px;
+}
+
+.main-logo {
+    width: 50px; /* Adjust this number to make the logo smaller or larger */
+    height: auto; /* Keeps the logo's proportions correct */
+}
+
+h1 {
+    margin: 0; /* Removes default spacing that might pull the text away */
+}
