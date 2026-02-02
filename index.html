@@ -6,15 +6,8 @@
     <title>SSM Project Tracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div class="title-container">
-    <img src="logo.png" alt="Logo" class="main-logo">
-    <h1>Project Tracker</h1>
-</div>
     <header class="auth-header">
-
-        
         <div id="user-info"></div>
         <div class="auth-buttons">
             <button id="login-btn" onclick="window.login()" style="display:none;">Sign in with Google</button>
@@ -23,7 +16,11 @@
     </header>
 
     <div class="container">
-
+        <div class="title-container" style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px;">
+            <img src="logo.png" alt="Logo" style="width: 50px; height: auto;">
+            <h1>Project Tracker</h1>
+        </div>
+        
         <div class="controls">
             <input type="text" id="projectSearch" placeholder="Search projects by name..." onkeyup="render()">
             <button class="add-btn" onclick="createNewProject()">Create Custom Project</button>
@@ -41,13 +38,10 @@
     </div>
 
 <script type="module">
-    // --- DEPENDENCIES ---
-    // Import Firebase SDKs for Database and Google Authentication
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    // --- CONFIGURATION ---
     const firebaseConfig = {
         apiKey: "AIzaSyCkPRfzBr6HjPJ14O-p_ir_XOvgvnkU8hk", 
         authDomain: "ssm-project-tracker.firebaseapp.com",
@@ -55,21 +49,19 @@
         projectId: "ssm-project-tracker",
     };
 
-    // Initialize Firebase Services
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    // --- STATE MANAGEMENT ---
-    // Tracks projects that haven't been created yet for the dropdown
     let commonProjects = ["Standard Bank Migration", "SSM Security Audit", "Quarterly Compliance Review"];
     let userProjects = [];
     let showArchived = false;
     let currentUser = null;
 
-    // MASTER TEMPLATE
-    const CHECKLIST_TEMPLATE = [
+    // --- MASTER TEMPLATE ---
+
+const CHECKLIST_TEMPLATE = [
         {
             id: "printers",
             title: "PRINTERS",
@@ -190,7 +182,8 @@
                         { id: "eng3", text: "Evac speaker requirements." },
                         { id: "eng4", text: "Installation of docking tiles or power poles." },
                         { id: "eng5", text: "Smoke/ Fire detection." },
-                        { id: "eng6", text: "Sprinklers." }
+                        { id: "eng6", text: "Sprinklers." },
+                        { id: "eng7", text: "floor boxes (in some cases these are needed instead of docking tiles.)" }
                     ]
                 },
                 {
@@ -279,7 +272,9 @@
                         { id: "d1", text: "Removal of network points." },
                         { id: "d2", text: "Removal of printers." },
                         { id: "d3", text: "Removal of Wi-Fi." },
-                        { id: "d4", text: "Removal of switches and racks." }
+                        { id: "d4", text: "Removal of switches and racks." },
+                        { id: "d5", text: "Removal of TV screens." },
+                        { id: "d6", text: "Removal of laptop safes." }
                     ]
                 },
                 {
@@ -346,9 +341,18 @@
                     ]
                 },
                 {
+                    subTitle: "Before Close out:",
+                    tasks: [
+                        { id: "bc1", text: "Create works completion list." },
+                        { id: "bc2", text: "Follow up works completion list." }
+                    ]
+                },
+                {
                     subTitle: "Project Close out:",
                     tasks: [
-                        { id: "pcclose1", text: "Obtain OHS File" }
+                        { id: "pcclose1", text: "Obtain OHS File." },
+                        { id: "pcclose2", text: "Hand over of updated base drawings from Mechanical and Electrical contractors."},
+                        { id: "pcclose3", text: "Update evacuation plans for internal display."}
                     ]
                 }
             ]
@@ -356,12 +360,19 @@
     ];
 
 
-    // --- AUTHENTICATION LOGIC ---
-    // Trigger Google Sign-in Popup
+    // --- AUTOMATIC TEMPLATE SORTING ---
+    function sortTemplate() {
+        CHECKLIST_TEMPLATE.sort((a, b) => a.title.localeCompare(b.title));
+        CHECKLIST_TEMPLATE.forEach(cat => {
+            if (cat.sections) cat.sections.sort((a, b) => a.subTitle.localeCompare(b.subTitle));
+        });
+    }
+    sortTemplate();
+
+    // --- AUTH LOGIC ---
     window.login = () => signInWithPopup(auth, provider);
     window.logout = () => signOut(auth);
 
-    // Listener for login/logout state changes
     onAuthStateChanged(auth, (user) => {
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
@@ -381,81 +392,58 @@
     });
 
     // --- DATABASE SYNC ---
-    // Listen for real-time changes in the 'projects' path in Firebase
-    const projectsRef = ref(db, 'projects');
-    onValue(projectsRef, (snapshot) => {
+    onValue(ref(db, 'projects'), (snapshot) => {
         const data = snapshot.val();
         userProjects = data ? Object.values(data) : [];
         window.render();
     });
 
-    // --- PROJECT CREATION HANDLERS ---
-    // Handler for creating a project from the 'Common Projects' dropdown
-    window.selectCommonProject = function(name) {
-        if (!name) return;
-        handleProjectCreation(name);
-        document.getElementById('commonProjectDropdown').value = ""; // Clear dropdown after selection
-    };
+    // --- CREATION HANDLERS ---
+    window.selectCommonProject = (name) => { if (name) handleProjectCreation(name); document.getElementById('commonProjectDropdown').value = ""; };
+    window.createNewProject = () => { const name = prompt("Enter Project Name:"); if (name) handleProjectCreation(name); };
 
-    // Handler for custom name entry
-    window.createNewProject = function() {
-        const name = prompt("Enter Project Name:");
-        if (name) handleProjectCreation(name);
-    };
-
-    /**
-     * Master function to validate and save new projects to the cloud
-     */
     async function handleProjectCreation(name) {
         if (!currentUser) return alert("Please login first!");
-
-        // Security Check: Prevent two active projects with the identical name
-        const duplicate = userProjects.find(p => 
-            p.name.toLowerCase() === name.toLowerCase() && p.status === 'active'
-        );
+        const duplicate = userProjects.find(p => p.name.toLowerCase() === name.toLowerCase() && p.status === 'active');
         if (duplicate) return alert(`Error: A project named "${name}" is already active.`);
 
-        const projectId = Date.now().toString(); // Use timestamp as a unique ID
+        const projectId = Date.now().toString();
         const newProject = { 
             id: projectId, 
             name: name, 
-            createdBy: currentUser.displayName, // Attach creator's name for team tracking
+            createdBy: currentUser.displayName, 
             status: 'active', 
             expanded: true, 
-            data: JSON.parse(JSON.stringify(CHECKLIST_TEMPLATE)) // Deep copy of the template
+            notes: "", 
+            lastModified: Date.now(), 
+            data: JSON.parse(JSON.stringify(CHECKLIST_TEMPLATE)) 
         };
-
-        // Logic: Once a 'Common Project' is used, remove it from the selectable dropdown
         commonProjects = commonProjects.filter(p => p.toLowerCase() !== name.toLowerCase());
-
-        // Write to Firebase
         await set(ref(db, 'projects/' + projectId), newProject);
     }
 
     // --- RENDERING ENGINE ---
-    /**
-     * Updates the HTML to reflect the current state (projects, search, filters)
-     */
     window.render = function() {
-        updateDropdown(); // Refresh the common projects menu
+        updateDropdown();
         const list = document.getElementById('project-list');
-        const searchInput = document.getElementById('projectSearch');
-        const search = searchInput ? searchInput.value.toLowerCase() : "";
+        const search = document.getElementById('projectSearch')?.value.toLowerCase() || "";
         list.innerHTML = '';
 
-        // Filter projects based on the search bar and the Active/Archived toggle
-        const filtered = userProjects.filter(p => {
+        // Sort project list and internal categories
+        const sorted = [...userProjects].sort((a, b) => a.name.localeCompare(b.name));
+
+        sorted.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(search);
             const matchesStatus = showArchived ? p.status === 'archived' : p.status === 'active';
             return matchesSearch && matchesStatus;
-        });
+        }).forEach(project => {
+            project.data.sort((a, b) => a.title.localeCompare(b.title));
 
-        // Generate the UI for each project card
-        filtered.forEach(project => {
-            // Calculate progress % by flattening nested task arrays
             const allTasks = project.data.flatMap(cat => cat.sections ? cat.sections.flatMap(s => s.tasks) : cat.tasks);
-            const done = allTasks.filter(t => t.completed).length;
-            const progress = (done / allTasks.length) * 100 || 0;
+            const progress = (allTasks.filter(t => t.completed).length / allTasks.length) * 100 || 0;
+            const lastDate = project.lastModified 
+                ? new Date(project.lastModified).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : "Never";
 
             const card = document.createElement('div');
             card.className = `project-card ${project.expanded ? 'expanded' : ''}`;
@@ -463,40 +451,45 @@
                 <div class="card-header" onclick="window.toggleExpand('${project.id}')">
                     <div style="display:flex; flex-direction:column; flex-grow:1">
                         <span class="project-title" style="font-size: 1.1rem; font-weight: bold;">${project.name}</span>
-                        <small style="color:#666; margin-top: 4px;">Created by: ${project.createdBy || 'Unknown'}</small>
+                        <div style="display:flex; gap: 10px; margin-top: 4px;">
+                            <small style="color:#666;">By: ${project.createdBy || 'Unknown'}</small>
+                            <small style="color:#999;">• Updated: ${lastDate}</small>
+                        </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:12px">
                         <div class="progress-container"><div class="progress-fill" style="width: ${progress}%"></div></div>
                         <button class="print-project-btn" onclick="event.stopPropagation(); window.printProject('${project.id}')">PDF</button>
                         <button class="archive-btn" onclick="event.stopPropagation(); window.archiveProject('${project.id}')">${showArchived ? 'Restore' : 'Archive'}</button>
-                        <button class="del-btn" onclick="event.stopPropagation(); window.deleteProject('${project.id}')">×</button>
+                        <button class="del-btn" style="background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:4px;" 
+                            onclick="event.stopPropagation(); window.deleteProject('${project.id}')">Delete</button>
                     </div>
                 </div>
-                <div class="checklist-content">${project.data.map(cat => renderCategory(project.id, cat)).join('')}</div>
+                <div class="checklist-content">
+                    ${project.data.map(cat => renderCategory(project.id, cat)).join('')}
+                    <div class="project-notes" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
+                        <label style="font-weight:bold; font-size:0.8rem;">Notes/Comments (Max 200):</label>
+                        <textarea maxlength="200" style="width:100%; height:50px; margin-top:5px;" 
+                            onchange="window.saveNotes('${project.id}', this.value)" 
+                            onclick="event.stopPropagation()">${project.notes || ""}</textarea>
+                    </div>
+                </div>
             `;
             list.appendChild(card);
         });
     };
 
-    /**
-     * Dynamically populates the <select> menu with remaining common projects
-     */
+    // --- HELPER FUNCTIONS ---
     function updateDropdown() {
         const dropdown = document.getElementById('commonProjectDropdown');
         if (!dropdown) return;
         dropdown.innerHTML = '<option value="">-- Select to Create --</option>';
-        commonProjects.forEach(project => {
-            const opt = document.createElement('option');
-            opt.value = project;
-            opt.textContent = project;
-            dropdown.appendChild(opt);
-        });
+        commonProjects.forEach(p => { const opt = document.createElement('option'); opt.value = p; opt.textContent = p; dropdown.appendChild(opt); });
     }
 
     function renderCategory(projId, cat) {
         let html = `<h3 class="category-header">${cat.title}</h3>`;
         if (cat.sections) {
-            html += cat.sections.map(sec => `<div class="sub-section"><h4 class="sub-header">${sec.subTitle}</h4>${sec.tasks.map(t => createTaskMarkup(projId, t)).join('')}</div>`).join('');
+            html += cat.sections.map(sec => `<div class="sub-section"><h4>${sec.subTitle}</h4>${sec.tasks.map(t => createTaskMarkup(projId, t)).join('')}</div>`).join('');
         } else {
             html += cat.tasks.map(t => createTaskMarkup(projId, t)).join('');
         }
@@ -510,56 +503,32 @@
                 </div>`;
     }
 
-    // --- DATA MUTATION ACTIONS ---
-    // Update a task's completion status in Firebase
-    window.toggleTask = async function(projId, taskId) {
-        const project = userProjects.find(p => p.id === projId.toString());
-        if (!project) return;
-        project.data.forEach(cat => {
+    // --- PERSISTENCE ACTIONS ---
+    window.saveNotes = async (id, text) => {
+        const p = userProjects.find(proj => proj.id === id);
+        if (p) { p.notes = text; p.lastModified = Date.now(); await set(ref(db, 'projects/' + id), p); }
+    };
+
+    window.toggleTask = async (projId, taskId) => {
+        const p = userProjects.find(proj => proj.id === projId);
+        p.data.forEach(cat => {
             const tasks = cat.sections ? cat.sections.flatMap(s => s.tasks) : cat.tasks;
-            const task = tasks.find(t => t.id === taskId);
-            if (task) task.completed = !task.completed;
+            const t = tasks.find(item => item.id === taskId);
+            if (t) t.completed = !t.completed;
         });
-        await set(ref(db, 'projects/' + projId), project);
+        p.lastModified = Date.now();
+        await set(ref(db, 'projects/' + projId), p);
     };
 
-    window.toggleExpand = async function(id) {
-        const p = userProjects.find(proj => proj.id === id.toString());
-        if (p) {
-            p.expanded = !p.expanded;
-            await set(ref(db, 'projects/' + id), p);
-        }
-    };
+    window.toggleExpand = async (id) => { const p = userProjects.find(proj => proj.id === id); p.expanded = !p.expanded; await set(ref(db, 'projects/' + id), p); };
+    window.archiveProject = async (id) => { const p = userProjects.find(proj => proj.id === id); p.status = p.status === 'active' ? 'archived' : 'active'; await set(ref(db, 'projects/' + id), p); };
+    window.deleteProject = async (id) => { if (confirm("Delete permanently?")) await remove(ref(db, 'projects/' + id)); };
+    window.toggleArchiveView = () => { showArchived = !showArchived; document.getElementById('toggleArchiveBtn').innerText = showArchived ? "View Active Projects" : "View Archived Projects"; window.render(); };
 
-    // Toggle the Active/Archived flag for a project
-    window.archiveProject = async function(id) {
-        const p = userProjects.find(proj => proj.id === id.toString());
-        if (p) {
-            p.status = p.status === 'active' ? 'archived' : 'active';
-            await set(ref(db, 'projects/' + id), p);
-        }
-    };
-
-    window.deleteProject = async function(id) {
-        if (confirm("Delete this project permanently?")) await remove(ref(db, 'projects/' + id));
-    };
-
-    window.toggleArchiveView = function() {
-        showArchived = !showArchived;
-        document.getElementById('toggleArchiveBtn').innerText = showArchived ? "View Active Projects" : "View Archived Projects";
-        window.render();
-    };
-
-    // --- PDF UTILITY ---
-    // Isolates a single project card using CSS 'print-focus' class for PDF generation
-    window.printProject = function(id) {
+    window.printProject = (id) => {
         const cards = document.querySelectorAll('.project-card');
         const targetCard = Array.from(cards).find(card => card.innerHTML.includes(`toggleExpand('${id}')`));
-        if (targetCard) {
-            targetCard.classList.add('print-focus');
-            window.print();
-            targetCard.classList.remove('print-focus');
-        }
+        if (targetCard) { targetCard.classList.add('print-focus'); window.print(); targetCard.classList.remove('print-focus'); }
     };
 </script>
 </body>
